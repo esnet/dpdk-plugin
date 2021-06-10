@@ -12,6 +12,12 @@ zeek_plugin_dist_files(README CHANGES COPYING VERSION)
 zeek_plugin_link_library(rte_eal rte_ethdev rte_mbuf)
 zeek_plugin_end()
 
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+if(COMPILER_SUPPORTS_MARCH_NATIVE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+endif()
+
 include_directories(/usr/include/x86_64-linux-gnu/dpdk /usr/include/dpdk)
 
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" VERSION LIMIT_COUNT 1)
