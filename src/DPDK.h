@@ -1,28 +1,30 @@
 #pragma once
 
-extern "C" {
+//extern "C" {
+#include <inttypes.h>
 #include <stdint.h>
 #include <sys/time.h>
-#include <inttypes.h>
+
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 #include <rte_cycles.h>
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
 
+#include <zeek/RunState.h>
 
 #define RX_RING_SIZE 1024
 
 #define NUM_MBUFS 8191
 #define MBUF_CACHE_SIZE 250
-#define BURST_SIZE 1
+#define BURST_SIZE 100
 
 static const struct rte_eth_conf port_conf_default = {
         .rxmode = {
                 .max_rx_pkt_len = RTE_ETHER_MAX_LEN,
         },
 };
-}
+//}
 
 #include "zeek/iosource/PktSrc.h"
 
@@ -49,26 +51,25 @@ namespace zeek::iosource {
     protected:
         // PktSrc interface.
         void Open() override;
-
         void Close() override;
 
-        bool ExtractNextPacket(zeek::Packet *pkt) override;
-
-        void DoneWithPacket() override;
-
-        bool PrecompileFilter(int index, const std::string &filter) override;
-
-        bool SetFilter(int index) override;
+        void Process() override;
 
         void Statistics(PktSrc::Stats *stats) override;
 
+        void DoneWithPacket() override { };
+        bool ExtractNextPacket(zeek::Packet *pkt) override { return true; };
+        bool PrecompileFilter(int index, const std::string& filter) override { return true; };
+        bool SetFilter(int index) override { return true; };
+
     private:
         inline int port_init(uint16_t port);
+        zeek::Packet *pkt;
 
         Properties props;
 
         // DPDK-related things
-        struct rte_mbuf *bufs[1];
+        struct rte_mbuf *bufs[BURST_SIZE];
         struct rte_mempool *mbuf_pool;
     };
 

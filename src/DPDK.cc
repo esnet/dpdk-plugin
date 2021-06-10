@@ -8,6 +8,7 @@ namespace zeek::iosource {
 
     DPDK::DPDK(const std::string &iface_name, bool is_live) {
         props.path = iface_name;
+        pkt = new zeek::Packet();
     }
 
 /*
@@ -95,10 +96,8 @@ namespace zeek::iosource {
         mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
                                             MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
                                             rte_socket_id());
-
         if (mbuf_pool == NULL)
             rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
-
 
         uint16_t portid;
 
@@ -114,7 +113,9 @@ namespace zeek::iosource {
                        "polling thread.\n\tPerformance will "
                        "not be optimal.\n", portid);
 
+
         Opened(props);
+
         return;
     }
 
@@ -123,34 +124,33 @@ namespace zeek::iosource {
         rte_eal_cleanup();
     }
 
+    void DPDK::Process() {
+        // Don't return any packets if processing is suspended (except for the
+        // very first packet which we need to set up times).
+        if ( run_state::is_processing_suspended() && run_state::detail::first_timestamp )
+            return;
 
-    bool DPDK::ExtractNextPacket(zeek::Packet *pkt) {
-        const uint16_t nb_rx = rte_eth_rx_burst(0, 0, bufs, 1);
+        if ( run_state::pseudo_realtime )
+            run_state::detail::current_wallclock = util::current_time(true);
+
+        const uint16_t nb_rx = rte_eth_rx_burst(0, 0, bufs, BURST_SIZE);
+
+        if ( nb_rx == 0 )
+            return;
+
+        if ( unlikely ( ! run_state::detail::first_timestamp ) )
+            run_state::detail::first_timestamp = util::current_time(true);
+
         struct timeval tv;
-        if (nb_rx > 0) {
-            gettimeofday(&tv, nullptr);
+        gettimeofday(&tv, nullptr);
 
-            pkt->Init(BURST_SIZE, &tv, bufs[0]->pkt_len, bufs[0]->pkt_len, rte_pktmbuf_mtod(bufs[0],
-                                                                                            const unsigned char*));
+        uint16_t i;
+        for (i = 0; i < nb_rx; i++)
+        {
+            pkt->Init(1, &tv, bufs[i]->pkt_len, bufs[i]->pkt_len, rte_pktmbuf_mtod(bufs[i], const unsigned char*));
+            run_state::detail::dispatch_packet(pkt, this);
+            rte_pktmbuf_free(bufs[i]);
         }
-        return true;
-    }
-
-
-    void DPDK::DoneWithPacket() {
-        rte_pktmbuf_free_bulk(bufs, 1);
-    }
-
-    bool DPDK::PrecompileFilter(int index, const std::string &filter) {
-        printf("PCF called\n");
-        return true;
-    }
-
-
-    bool DPDK::SetFilter(int index) {
-        printf("SF called\n");
-        return true;
-
     }
 
     void DPDK::Statistics(PktSrc::Stats *stats) {
