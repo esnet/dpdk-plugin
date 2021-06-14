@@ -18,6 +18,6 @@ build_ubuntu20:
 
   script:
     - docker pull $IMAGE_NAME || true
-    - docker build --cache-from $IMAGE_NAME --tag $IMAGE_NAME
+    - docker build --cache-from $IMAGE_NAME --tag $IMAGE_NAME .
     - docker push $IMAGE_NAME
 
