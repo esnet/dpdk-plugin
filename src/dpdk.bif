@@ -1,1 +1,2 @@
-
+# Number of workers
+const DPDK::num_workers: count;

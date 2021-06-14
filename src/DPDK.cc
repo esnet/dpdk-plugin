@@ -6,9 +6,14 @@ namespace zeek::iosource {
         rte_eal_cleanup();
     }
 
+    // -i dpdk::eth0 will pass iface_name="eth0"
     DPDK::DPDK(const std::string &iface_name, bool is_live) {
         props.path = iface_name;
         pkt = new zeek::Packet();
+
+        // TODO: Determine port_num and queue_num
+        my_port_num = 0;
+        my_queue_num = 0;//rte_lcore_index(rte_lcore_id());
     }
 
 /*
@@ -16,8 +21,21 @@ namespace zeek::iosource {
  */
     inline int
     DPDK::port_init(uint16_t port) {
-        struct rte_eth_conf port_conf = port_conf_default;
-        const uint16_t rx_rings = 1;
+        struct rte_eth_conf port_conf = {
+                .rxmode = {
+                        .mq_mode    = ETH_MQ_RX_RSS,
+                        .split_hdr_size = 0,
+                        //.offloads = DEV_RX_OFFLOAD_CHECKSUM,
+                },
+                /*.rx_adv_conf = {
+                        .rss_conf = {
+                                .rss_key = NULL,
+                                .rss_hf = ETH_RSS_IP,
+                        },
+                },*/
+        };
+        // TODO: number of workers
+        const uint16_t rx_rings = zeek::BifConst::DPDK::num_workers;
         uint16_t nb_rxd = RX_RING_SIZE;
         // TODO: Can this be 0?
         uint16_t nb_txd = RX_RING_SIZE;
@@ -36,22 +54,21 @@ namespace zeek::iosource {
             return retval;
         }
 
-        /* Configure the Ethernet device. */
-        retval = rte_eth_dev_configure(port, rx_rings, 0, &port_conf);
+        // Set number of queues
+        retval = rte_eth_dev_configure(port, 1, 0, &port_conf);
         if (retval != 0)
             return retval;
 
-        retval = rte_eth_dev_adjust_nb_rx_tx_desc(port, &nb_rxd, &nb_txd);
+        // Set size of queues
+        retval = rte_eth_dev_adjust_nb_rx_tx_desc(port, &nb_rxd, nullptr);
         if (retval != 0)
             return retval;
 
-        /* Allocate and set up 1 RX queue per Ethernet port. */
-        for (q = 0; q < rx_rings; q++) {
-            retval = rte_eth_rx_queue_setup(port, q, nb_rxd,
-                                            rte_eth_dev_socket_id(port), NULL, mbuf_pool);
-            if (retval < 0)
-                return retval;
-        }
+        // TODO: Figure out which queue we have, as worker #n
+        retval = rte_eth_rx_queue_setup(port, my_queue_num, nb_rxd,
+                                        rte_eth_dev_socket_id(port), NULL, mbuf_pool);
+        if (retval < 0)
+            return retval;
 
         /* Start the Ethernet port. */
         retval = rte_eth_dev_start(port);
@@ -62,6 +79,8 @@ namespace zeek::iosource {
         retval = rte_eth_promiscuous_enable(port);
         if (retval != 0)
             return retval;
+
+        // TODO: Disable offloading, configure the RSS hash, etc.
 
         return 0;
     }
@@ -74,7 +93,9 @@ namespace zeek::iosource {
 
         // rte_eal_init needs argc and argv, so build that for now
         // TODO: Don't hardcode the interface
-        std::vector<std::string> arguments = {"-c", "1", "-l", "1", "--vdev=eth_pcap0,iface=ens3f0"};
+        std::vector<std::string> arguments = {"--proc-type=auto",
+                                              "--vdev=eth_pcap0,iface=" + props.path};
+        // TODO: Causing a double free, "--file-prefix=zeek"};
 
         std::vector<char *> argv;
         for (const auto &arg : arguments)
@@ -99,21 +120,30 @@ namespace zeek::iosource {
         if (mbuf_pool == NULL)
             rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
 
-        uint16_t portid;
-
         /* Initialize all ports. */
-        RTE_ETH_FOREACH_DEV(portid)if (port_init(portid) != 0)
-                rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n",
-                         portid);
+        if (port_init(my_port_num) != 0)
+            rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", my_port_num);
 
-        RTE_ETH_FOREACH_DEV(portid)if (rte_eth_dev_socket_id(portid) > 0 &&
-                                       rte_eth_dev_socket_id(portid) !=
-                                       (int) rte_socket_id())
-                printf("WARNING, port %u is on remote NUMA node to "
-                       "polling thread.\n\tPerformance will "
-                       "not be optimal.\n", portid);
+        struct rte_eth_dev_info dev_info;
 
 
+        /* Set MTU */
+        // TODO: BIF
+        uint16_t mtu = 9000;
+        ret = rte_eth_dev_set_mtu(my_port_num, mtu);
+        if(ret != 0)
+            rte_exit(EXIT_FAILURE, "Cannot set MTU %" PRIu16 ", retval=%d\n", mtu, ret);
+
+        // TODO: reporter.log?
+        if (rte_eth_dev_socket_id(my_port_num) > 0 &&
+            rte_eth_dev_socket_id(my_port_num) !=
+            (int) rte_socket_id())
+            printf("WARNING, port %u is on remote NUMA node to "
+                   "polling thread.\n\tPerformance will "
+                   "not be optimal.\n", my_port_num);
+
+
+        // Tells Zeek that we successfully opened the interface
         Opened(props);
 
         return;
@@ -121,6 +151,7 @@ namespace zeek::iosource {
 
 
     void DPDK::Close() {
+        Closed();
         rte_eal_cleanup();
     }
 
@@ -133,7 +164,7 @@ namespace zeek::iosource {
         if ( run_state::pseudo_realtime )
             run_state::detail::current_wallclock = util::current_time(true);
 
-        const uint16_t nb_rx = rte_eth_rx_burst(0, 0, bufs, BURST_SIZE);
+        const uint16_t nb_rx = rte_eth_rx_burst(my_port_num, my_queue_num, bufs, BURST_SIZE);
 
         if ( nb_rx == 0 )
             return;
@@ -141,19 +172,28 @@ namespace zeek::iosource {
         if ( unlikely ( ! run_state::detail::first_timestamp ) )
             run_state::detail::first_timestamp = util::current_time(true);
 
+        // TODO: Don't do this?
         struct timeval tv;
         gettimeofday(&tv, nullptr);
 
         uint16_t i;
         for (i = 0; i < nb_rx; i++)
         {
-            pkt->Init(1, &tv, bufs[i]->pkt_len, bufs[i]->pkt_len, rte_pktmbuf_mtod(bufs[i], const unsigned char*));
+            // TODO: How to get caplen?
+            pkt->Init(DLT_EN10MB, &tv, bufs[i]->pkt_len, bufs[i]->pkt_len, rte_pktmbuf_mtod(bufs[i], const unsigned char*));
             run_state::detail::dispatch_packet(pkt, this);
             rte_pktmbuf_free(bufs[i]);
         }
     }
 
     void DPDK::Statistics(PktSrc::Stats *stats) {
+        struct rte_eth_stats eth_stats;
+        if ( rte_eth_stats_get(my_port_num, &eth_stats) == 0) {
+            stats->bytes_received = eth_stats.ibytes;
+            stats->dropped = eth_stats.imissed;
+            stats->received = eth_stats.ipackets;
+        }
+
         return;
     }
 

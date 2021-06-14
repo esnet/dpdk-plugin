@@ -7,5 +7,8 @@
 # __load__.zeek instead.
 #
 
-@load ./types
+module DPDK;
 
+export {
+const num_workers = 2 &redef;
+}

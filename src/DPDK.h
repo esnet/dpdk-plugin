@@ -13,6 +13,8 @@
 
 #include <zeek/RunState.h>
 
+#include "dpdk.bif.h"
+
 #define RX_RING_SIZE 1024
 
 #define NUM_MBUFS 8191
@@ -65,6 +67,9 @@ namespace zeek::iosource {
     private:
         inline int port_init(uint16_t port);
         zeek::Packet *pkt;
+
+        uint16_t my_port_num;
+        uint16_t my_queue_num;
 
         Properties props;
 
