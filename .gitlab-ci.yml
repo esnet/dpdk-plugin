@@ -1,0 +1,29 @@
+stages:
+  - build_docker_images
+  - deploy
+  - test
+
+build_ubuntu20:
+  stage: build_docker_images
+
+  image: docker:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/ubuntu20:latest
+
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+  script:
+    - docker pull $IMAGE_NAME || true
+    - docker build --cache-from $IMAGE_NAME --tag $IMAGE_NAME .
+    - docker push $IMAGE_NAME
+
+deploy_k8s_sec1:
+  stage: deploy
+
+  image: dtzar/helm-kubectl
+
+  script: kubectl create secret docker-registry gitlab-registry --docker-server="$CI_REGISTRY" --docker-username="$CI_DEPLOY_USER" --docker-password="$CI_DEPLOY_PASSWORD" --docker-email="$GITLAB_USER_EMAIL" -o yaml --dry-run=client | kubectl apply -f -
