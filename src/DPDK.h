@@ -2,6 +2,7 @@
 
 //extern "C" {
 #include <inttypes.h>
+#include <net/if.h>
 #include <stdint.h>
 #include <sys/time.h>
 
@@ -21,12 +22,22 @@
 #define MBUF_CACHE_SIZE 250
 #define BURST_SIZE 100
 
-static const struct rte_eth_conf port_conf_default = {
-        .rxmode = {
-                .max_rx_pkt_len = RTE_ETHER_MAX_LEN,
-        },
-};
-//}
+/*
+ * Default byte size for the IPv6 Maximum Transfer Unit (MTU).
+ * This value includes the size of IPv6 header.
+ */
+#define IPV4_MTU_DEFAULT    RTE_ETHER_MTU
+#define IPV6_MTU_DEFAULT    RTE_ETHER_MTU
+/*
+ * The overhead from max frame size to MTU.
+ * We have to consider the max possible overhead.
+ */
+#define MTU_OVERHEAD    \
+    (RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN + \
+        2 * sizeof(struct rte_vlan_hdr))
+
+/* allow max jumbo frame 9216 */
+#define JUMBO_FRAME_MAX_SIZE    0x2000
 
 #include "zeek/iosource/PktSrc.h"
 
