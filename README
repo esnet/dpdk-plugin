@@ -2,4 +2,26 @@
 ESnet::DPDK
 =================================
 
-<Insert plugin documentation here.>
+DPDK function order:
+
+          ( DPDK::Open is called )
+    01. Initialize the EAL (rte_eal_init)
+    02. Ensure we have at least one port (rte_eth_dev_count_avail)
+    03. Create the mbuf (rte_pktmbuf_pool_create)
+          ( port_init is called )
+    04. Double-check (rte_eth_dev_is_valid_port)
+    05. Get device info (rte_eth_dev_info_get)
+    06. Configure the port (rte_eth_dev_configure)
+    07. Set the MTU (rte_eth_dev_set_mtu)
+    08. Adjust the number of queue descriptors (rte_eth_dev_adjust_nb_rx_tx_desc)
+    09. Configure the number of queues (rte_eth_rx_queue_setup)
+    10. Start the port (rte_eth_dev_start)
+    11. Enable promiscuous mode (rte_eth_promiscuous_enable)
+         ( port_init returns )
+    12. Check for NUMA proximity (rte_eth_dev_socket_id, rte_socket_id)
+    13. Tell Zeek that we've opened the port (Opened)
+         ( DPDK::Process )
+    14. Get a bunch of packets (rte_eth_rx_burst)
+    15. Send them to Zeek (dispatch_packet)
+    16. Free the mbuf memory once Zeek is done (rte_pktmbuf_free)
+
