@@ -1,0 +1,47 @@
+# Clang-format configuration for Zeek.
+
+Language: Cpp
+Standard: c++17
+
+BreakBeforeBraces: Whitesmiths
+
+AccessModifierOffset: -4
+AlignAfterOpenBracket: true
+AlignTrailingComments: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLambdasOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+BinPackArguments: true
+BinPackParameters: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+ColumnLimit: 100
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+FixNamespaceComments: false
+IndentCaseLabels: true
+IndentCaseBlocks: true
+IndentExternBlock: NoIndent
+IndentPPDirectives: None
+IndentWidth: 4
+NamespaceIndentation: None
+PointerAlignment: Left
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyBlock: true
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInConditionalStatement: true
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+TabWidth: 4
+UseTab: AlignWithSpaces

@@ -1,14 +1,13 @@
 #pragma once
 
-//extern "C" {
 #include <inttypes.h>
 #include <net/if.h>
 #include <stdint.h>
 #include <sys/time.h>
 
+#include <rte_cycles.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
-#include <rte_cycles.h>
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
 
@@ -23,70 +22,64 @@
 #define BURST_SIZE 100
 
 /*
- * Default byte size for the IPv6 Maximum Transfer Unit (MTU).
- * This value includes the size of IPv6 header.
- */
-#define IPV4_MTU_DEFAULT    RTE_ETHER_MTU
-#define IPV6_MTU_DEFAULT    RTE_ETHER_MTU
-/*
  * The overhead from max frame size to MTU.
  * We have to consider the max possible overhead.
  */
-#define MTU_OVERHEAD    \
-    (RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN + \
-        2 * sizeof(struct rte_vlan_hdr))
+#define MTU_OVERHEAD (RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN + 2 * sizeof(struct rte_vlan_hdr))
 
-/* allow max jumbo frame 9216 */
-#define JUMBO_FRAME_MAX_SIZE    0x2000
+/* allow max jumbo frame 9726 */
+#define JUMBO_FRAME_MAX_SIZE 0x2600
 
 #include "zeek/iosource/PktSrc.h"
 
-namespace zeek::iosource {
+namespace zeek::iosource
+	{
 
-    class DPDK : public PktSrc {
-    public:
-        /**
-         * Constructor.
-         *
-         * path: Name of the interface to open
-         *
-         * is_live: Must be true
-         */
-        DPDK(const std::string &path, bool is_live);
+class DPDK : public PktSrc
+	{
+public:
+	/**
+	 * Constructor.
+	 *
+	 * path: Name of the interface to open
+	 *
+	 * is_live: Must be true
+	 */
+	DPDK(const std::string& path, bool is_live);
 
-        /**
-         * Destructor.
-         */
-        virtual ~DPDK();
+	/**
+	 * Destructor.
+	 */
+	virtual ~DPDK();
 
-        static PktSrc *PortInit(const std::string &iface_name, bool is_live);
+	static PktSrc* PortInit(const std::string& iface_name, bool is_live);
 
-    protected:
-        // PktSrc interface.
-        void Open() override;
-        void Close() override;
+protected:
+	// PktSrc interface.
+	void Open() override;
+	void Close() override;
 
-        void Process() override;
+	void Process() override;
 
-        void Statistics(PktSrc::Stats *stats) override;
+	void Statistics(PktSrc::Stats* stats) override;
 
-        void DoneWithPacket() override { };
-        bool ExtractNextPacket(zeek::Packet *pkt) override { return true; };
-        bool PrecompileFilter(int index, const std::string& filter) override { return true; };
-        bool SetFilter(int index) override { return true; };
+	void DoneWithPacket() override {};
+	bool ExtractNextPacket(zeek::Packet* pkt) override { return true; };
+	bool PrecompileFilter(int index, const std::string& filter) override { return true; };
+	bool SetFilter(int index) override { return true; };
 
-    private:
-        inline int port_init(uint16_t port);
-        zeek::Packet *pkt;
+private:
+	inline int port_init(uint16_t port);
+	zeek::Packet* pkt;
 
-        uint16_t my_port_num;
-        uint16_t my_queue_num;
+	uint16_t my_port_num;
+	uint16_t my_queue_num;
 
-        Properties props;
+	Properties props;
 
-        // DPDK-related things
-        struct rte_mbuf *bufs[BURST_SIZE];
-        struct rte_mempool *mbuf_pool;
-    };
+	// DPDK-related things
+	struct rte_mbuf* bufs[BURST_SIZE];
+	struct rte_mempool* mbuf_pool;
+	};
 
-} // namespace zeek::iosource
+	} // namespace zeek::iosource
