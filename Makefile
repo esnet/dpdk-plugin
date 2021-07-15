@@ -34,3 +34,6 @@ copy:
 
 build: copy
 	ssh zeek-test2 'cd /usr/local/esnet-security/dpdk; PATH=/usr/local/zeek/bin:$$PATH ./configure && make && sudo make install'
+
+demo: build
+	ssh zeek-test2 'cd /usr/local/esnet-security/dpdk; ./test_two_queues.sh'
