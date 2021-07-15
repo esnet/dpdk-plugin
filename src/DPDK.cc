@@ -201,7 +201,7 @@ void DPDK::Open()
 	bool found = false;
 	// uint16_t port_id;
 
-	ret = port_init(my_queue_num);
+	ret = port_init(0);
 	found |= ret == 0;
 
 	if ( ret && rte_eth_dev_socket_id(my_queue_num) > 0 &&
