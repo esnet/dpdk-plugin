@@ -27,3 +27,10 @@ distclean:
 
 test:
 	make -C tests
+
+
+copy:
+	rsync --exclude build --exclude .git -rl . zeek-test2:/usr/local/esnet-security/dpdk
+
+build: copy
+	ssh zeek-test2 'cd /usr/local/esnet-security/dpdk; PATH=/usr/local/zeek/bin:$$PATH ./configure && make && sudo make install'
