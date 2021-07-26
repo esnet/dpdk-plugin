@@ -1,17 +1,20 @@
 #!/bin/bash
 
-sudo rm -Rf worker_1 worker_2 2> /dev/null
-mkdir worker_1 worker_2
+TEST_DURATION=60
 
-( cd worker_1
-  sudo timeout 60 /usr/local/zeek/bin/zeek -i dpdk::ens3f1 > ../w1.out 2> ../w1.err &
+EPOCH_TIME=$(date +%s)
+
+mkdir worker_1_$EPOCH_TIME worker_2_$EPOCH_TIME
+
+( cd worker_1_$EPOCH_TIME
+  sudo timeout $TEST_DURATION /usr/local/zeek/bin/zeek -i dpdk::ens3f1 misc/capture-loss -e "Log::set_buf(Conn::LOG, F)"> ../w1.out 2> ../w1.err &
 )
 
-( cd worker_2
-  sudo QUEUE=yes timeout 60 /usr/local/zeek/bin/zeek -i dpdk::ens3f1 > ../w2.out 2> ../w2.err &
+( cd worker_2_$EPOCH_TIME
+  sudo QUEUE=yes timeout $TEST_DURATION /usr/local/zeek/bin/zeek -i dpdk::ens3f1 misc/capture-loss -e "Log::set_buf(Conn::LOG, F)" > ../w2.out 2> ../w2.err &
 )
 
-sleep 60
+sleep $TEST_DURATION
 
 echo "================= # 1 stdout ==================="
 cat w1.out
@@ -25,6 +28,6 @@ cat w2.err
 
 echo "------------------------------------------------"
 
-ls -l worker_*
+ls -l worker_*_$EPOCH_TIME
 
-wc -l worker_*/conn.log
+wc -l worker_*_$EPOCH_TIME/conn.log

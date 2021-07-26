@@ -30,10 +30,13 @@ test:
 
 
 copy:
-	rsync --exclude build --exclude .git -rl . zeek-test2:/usr/local/esnet-security/dpdk
+	rsync --exclude build --exclude .git --exclude w1.pcap --exclude w2.pcap -rl . zeek-test2:/usr/local/esnet-security/dpdk
 
 build: copy
 	ssh zeek-test2 'cd /usr/local/esnet-security/dpdk; PATH=/usr/local/zeek/bin:$$PATH ./configure && make && sudo make install'
 
 demo: build
 	ssh zeek-test2 'cd /usr/local/esnet-security/dpdk; ./test_two_queues.sh'
+
+print_debug: build
+	ssh zeek-test2 'sudo CLUSTER_NODE=zeek-west2-worker-5 /usr/local/zeek/bin/zeek -i dpdk::ens3f1 /usr/local/esnet-security/dpdk/cluster-layout.zeek'

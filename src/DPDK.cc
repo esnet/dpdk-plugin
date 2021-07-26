@@ -15,10 +15,61 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 
 	// TODO: Determine port_num
 	my_port_num = 0;
-	char* queue = getenv("QUEUE");
+
+	char* cluster_node = getenv("CLUSTER_NODE");
+	// Not running in a cluster, so single-queue
+	if (!cluster_node)
+		{
+		my_queue_num = 0;
+		return;
+		}
+
+	static auto cluster_node_table = zeek::id::find_val("Cluster::nodes")->AsTable();
+
+	/* Fields in a record of type Cluster::Node
+	[0] = node_type:    NodeType;
+	[1] = ip:           addr;
+	[2] = zone_id:      string      &default="";
+	[3] = p:            port        &default=0/unknown;
+	[4] = interface:    string      &optional;
+	[5] = manager:      string      &optional;
+	[6] = time_machine: string      &optional;
+	[7] = id: string                &optional;
+	*/
+
+	static auto my_entry = cluster_node_table->Lookup(cluster_node)->GetVal()->AsRecordVal();
+	static auto my_ip = my_entry->GetField(1)->AsAddr();
+	// TODO: Technically this could be unset
+	static auto my_iface = my_entry->GetField(4)->AsString();
+
 	my_queue_num = 0;
-	if (queue)
-		my_queue_num = 1;	
+	total_queues = 0;
+	
+	for ( const auto& iter : *cluster_node_table )
+		{
+		auto k = iter.GetKey();
+		auto v = iter.GetValue<zeek::TableEntryVal*>()->GetVal()->AsRecordVal();
+
+		auto interface_field = v->GetField(4);
+		if ( ! interface_field )
+			continue;
+
+		auto interface_val = interface_field->AsString();
+		auto ip_val = v->GetField(1)->AsAddr();
+
+		if ( ( ip_val == my_ip ) && ( *interface_val == *my_iface ) )
+			{
+			// We have a cluster member whose IP and interface matches ours.
+			total_queues++;
+			// If they come before us, we bump up our queue number.
+			if ( strcmp(k, cluster_node) < 0 )
+				my_queue_num++;
+			}
+		}
+
+	printf("Found %d queues\n", total_queues);
+	
+	// printf("Monitoring queue number: %d/%d\n", my_queue_num, total_queues);
 	}
 
 /*
@@ -26,6 +77,14 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
  */
 inline int DPDK::port_init(uint16_t port)
 	{
+	static uint8_t rss_key[40] = {
+			0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+			0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+			0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+			0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+			0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
+	};
+
 	struct rte_eth_conf port_conf = {
 		.rxmode =
 			{
@@ -38,8 +97,12 @@ inline int DPDK::port_init(uint16_t port)
 			{
 				.rss_conf =
 					{
-						.rss_key = NULL,
-						.rss_hf = ETH_RSS_IP,
+						.rss_key = rss_key,
+						.rss_key_len = 40,
+						.rss_hf = ETH_RSS_NONFRAG_IPV4_TCP | ETH_RSS_NONFRAG_IPV6_TCP | \
+								  ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_NONFRAG_IPV6_UDP | \
+								  ETH_RSS_NONFRAG_IPV4_OTHER | ETH_RSS_NONFRAG_IPV6_OTHER | \
+								  ETH_RSS_FRAG_IPV4 | ETH_RSS_FRAG_IPV6,
 					},
 			},
 	};
@@ -47,8 +110,8 @@ inline int DPDK::port_init(uint16_t port)
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_rxconf rxq_conf;
 
-	const uint16_t rx_rings = zeek::BifConst::DPDK::num_workers;
-	uint16_t nb_rxd = RX_RING_SIZE;
+	const uint16_t rx_rings = total_queues;
+	// uint16_t nb_rxd = RX_RING_SIZE;
 
 	int retval;
 	uint16_t q;
@@ -56,7 +119,7 @@ inline int DPDK::port_init(uint16_t port)
 
 	if ( rte_eal_process_type() == RTE_PROC_SECONDARY )
 		{
-		reporter->Info("Monitoring DPDK port %u, queue %u\n", port, my_queue_num);
+		reporter->Info("Monitoring DPDK port %u, queue %u/%u\n", port, my_queue_num, total_queues);
 		return 0;
 		}
 
@@ -112,33 +175,33 @@ inline int DPDK::port_init(uint16_t port)
 		}
 
 	// Set MTU to the maximum
-	retval = rte_eth_dev_set_mtu(my_port_num, port_conf.rxmode.max_rx_pkt_len - MTU_OVERHEAD);
+	retval = rte_eth_dev_set_mtu(port, port_conf.rxmode.max_rx_pkt_len - MTU_OVERHEAD);
 	if ( retval != 0 )
-		reporter->Warning("Error during running eth_dev_set_mtu (port %u, mtu %u) info: %s\n", port,
+		reporter->Warning("Error during running eth_dev_set_mtu (port %u, mtu %lu) info: %s\n", port,
 		                  port_conf.rxmode.max_rx_pkt_len - MTU_OVERHEAD, strerror(-retval));
 
-	// Set size of queues
-	retval = rte_eth_dev_adjust_nb_rx_tx_desc(port, &nb_rxd, nullptr);
+	// Adjust number of queues as required by the NIC
+	uint16_t rx_descriptors = RX_RING_SIZE;
+	retval = rte_eth_dev_adjust_nb_rx_tx_desc(port, &rx_descriptors, nullptr);
 	if ( retval != 0 )
 		{
 		reporter->FatalError("Error setting the number of queues (port %u): %s\n", port,
 		                     strerror(-retval));
 		return retval;
 		}
-	printf("mark\n");
 
 	rxq_conf = dev_info.default_rxconf;
 	rxq_conf.offloads = port_conf.rxmode.offloads;
 	for ( q = 0; q < rx_rings; q++ )
 		{
-		retval = rte_eth_rx_queue_setup(port, q, nb_rxd, rte_eth_dev_socket_id(port), &rxq_conf,
+	  printf("Configuring queue %d\n", q);
+		retval = rte_eth_rx_queue_setup(port, q, rx_descriptors, rte_eth_dev_socket_id(port), &rxq_conf,
 		                                mbuf_pool);
 		if ( retval < 0 )
 			return retval;
 		}
-	//
-	//        // TODO: Figure out which queue we have, as worker #n
-	retval = rte_eth_rx_queue_setup(port, my_queue_num, nb_rxd, rte_socket_id(), NULL, mbuf_pool);
+
+	retval = rte_eth_rx_queue_setup(port, my_queue_num, rx_descriptors, rte_socket_id(), NULL, mbuf_pool);
 	if ( retval < 0 )
 		return retval;
 
@@ -146,6 +209,8 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_dev_start(port);
 	if ( retval < 0 )
 		return retval;
+
+	printf("------------------------------ Initializing %d\n", port);
 
 	/* Enable RX in promiscuous mode for the Ethernet device. */
 	retval = rte_eth_promiscuous_enable(port);
@@ -188,7 +253,6 @@ void DPDK::Open()
 		{
 		/* Creates a new mempool in memory to hold the mbufs. */
 		mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports, MBUF_CACHE_SIZE, 0,
-		                                    // RTE_MBUF_DEFAULT_BUF_SIZE,
 		                                    16384, rte_socket_id());
 		if ( mbuf_pool == NULL )
 			reporter->FatalError("Cannot create mbuf pool\n");
@@ -201,7 +265,7 @@ void DPDK::Open()
 	bool found = false;
 	// uint16_t port_id;
 
-	ret = port_init(0);
+	ret = port_init(my_port_num);
 	found |= ret == 0;
 
 	if ( ret && rte_eth_dev_socket_id(my_queue_num) > 0 &&

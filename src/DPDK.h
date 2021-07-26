@@ -11,11 +11,13 @@
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
 
+#include <zeek/Desc.h>
+#include <zeek/ID.h>
 #include <zeek/RunState.h>
 
 #include "dpdk.bif.h"
 
-#define RX_RING_SIZE 1024
+#define RX_RING_SIZE 256
 
 #define NUM_MBUFS 8191
 #define MBUF_CACHE_SIZE 250
@@ -73,6 +75,7 @@ private:
 	zeek::Packet* pkt;
 
 	uint16_t my_port_num;
+	uint16_t total_queues;
 	uint16_t my_queue_num;
 
 	Properties props;
