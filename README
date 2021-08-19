@@ -2,6 +2,19 @@
 ESnet::DPDK
 =================================
 
+Install
+-------
+
+On Ubuntu:
+
+```
+dpdk-devbind.py --status
+sudo dpdk-devbind.py -u 02:00.0
+sudo apt install dpdk-igb-uio-dkms
+sudo modprobe igb_uio
+sudo dpdk-devbind.py -b igb_uio 02:00.0
+```
+
 DPDK function order:
 
           ( DPDK::Open is called )

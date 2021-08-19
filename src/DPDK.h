@@ -8,6 +8,7 @@
 #include <rte_cycles.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
+#include <rte_latencystats.h>
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
 
@@ -17,11 +18,16 @@
 
 #include "dpdk.bif.h"
 
-#define RX_RING_SIZE 256
+// Minimum required
+#define RX_RING_SIZE 64
 
-#define NUM_MBUFS 8191
-#define MBUF_CACHE_SIZE 250
-#define BURST_SIZE 100
+// Should be 2**n - 1
+#define NUM_MBUFS 32767
+// NUM_BUFS % MBUF_CACHE_SIZE should be 0
+#define MBUF_CACHE_SIZE 1057
+
+#define BURST_SIZE 16384
+// 1024
 
 /*
  * The overhead from max frame size to MTU.
@@ -69,10 +75,12 @@ protected:
 	bool ExtractNextPacket(zeek::Packet* pkt) override { return true; };
 	bool PrecompileFilter(int index, const std::string& filter) override { return true; };
 	bool SetFilter(int index) override { return true; };
+	double GetNextTimeout() override { return 0; };
 
 private:
 	inline int port_init(uint16_t port);
 	zeek::Packet* pkt;
+	PktSrc::Stats queue_stats;
 
 	uint16_t my_port_num;
 	uint16_t total_queues;

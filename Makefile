@@ -40,3 +40,6 @@ demo: build
 
 print_debug: build
 	ssh zeek-test2 'sudo CLUSTER_NODE=zeek-west2-worker-5 /usr/local/zeek/bin/zeek -i dpdk::ens3f1 /usr/local/esnet-security/dpdk/cluster-layout.zeek'
+
+perf: build
+	./tcpreplay_test.sh
