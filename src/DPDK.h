@@ -26,7 +26,7 @@
 // NUM_BUFS % MBUF_CACHE_SIZE should be 0
 #define MBUF_CACHE_SIZE 1057
 
-#define BURST_SIZE 16384
+#define BURST_SIZE 1024
 // 1024
 
 /*

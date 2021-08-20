@@ -20,7 +20,7 @@ install:
 	( cd $(cmake_build_dir) && make install )
 
 clean:
-	( cd $(cmake_build_dir) && make clean )
+	( cd $(cmake_build_dir) && make clean && ssh zeek-test2 'cd /usr/local/esnet-security/dpdk; PATH=/usr/local/zeek/bin:$$PATH make clean')
 
 distclean:
 	rm -rf $(cmake_build_dir)

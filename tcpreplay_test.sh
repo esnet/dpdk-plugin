@@ -57,7 +57,7 @@ ssh zeek-west1.es.net -f 'sudo tcpreplay -i enp216s0f1 -Kt /usr/local/esnet-secu
 ssh zeek-test2.es.net -f "sudo kill $ZEEK_DPDK_PID; sleep 3; sudo kill -INT $PERF_DPDK_PID"
 ssh zeek-test1.es.net -f "sudo kill $ZEEK_AF_PID; sleep 3; sudo kill -INT $PERF_AF_PID"
 
-scp zeek-test1.es.net:/tmp/perf_zeek-test1.out perf_zeek-test1_$RUN_ID.out
-scp zeek-test2.es.net:/tmp/perf_zeek-test2.out perf_zeek-test2_$RUN_ID.out
+scp zeek-test1.es.net:/tmp/perf_zeek-test1.out perf_${RUN_ID}_zeek-test1.out
+scp zeek-test2.es.net:/tmp/perf_zeek-test2.out perf_${RUN_ID}_zeek-test2.out
 
 echo "Finished run with ID $RUN_ID"
