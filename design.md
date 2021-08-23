@@ -37,8 +37,8 @@ graph TD;
   DPDKProcess --> rte_eth_rx_burst --> loop_start
 
   subgraph "iterate over packets"
-  loop_start(rte_pktmbuf_free)
-  loop_start --> loop_start
+  loop_start(dispatch_packet)
+  loop_start --> rte_pktmbuf_free
   end
 
   end
