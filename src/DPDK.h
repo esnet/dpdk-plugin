@@ -18,16 +18,15 @@
 
 #include "dpdk.bif.h"
 
-// Minimum required
-#define RX_RING_SIZE 64
-
 // Should be 2**n - 1
+//#define NUM_MBUFS 32767
 #define NUM_MBUFS 32767
 // NUM_BUFS % MBUF_CACHE_SIZE should be 0
-#define MBUF_CACHE_SIZE 1057
+#define MBUF_CACHE_SIZE RTE_MEMPOOL_CACHE_MAX_SIZE
 
-#define BURST_SIZE 1024
-// 1024
+#define CACHE_SIZE 1024*1024*1024
+#define BURST_SIZE 2048
+#define RX_RING_SIZE 4096
 
 /*
  * The overhead from max frame size to MTU.
@@ -42,6 +41,16 @@
 
 namespace zeek::iosource
 	{
+
+struct worker_thread_args {
+    int port_id;
+	int queue_id;
+    struct rte_ring *ring;
+};
+static uint64_t queue_drops;
+
+static int GrabPackets(void *args_ptr);
+static bool pkt_loop;
 
 class DPDK : public PktSrc
 	{
@@ -79,18 +88,28 @@ protected:
 
 private:
 	inline int port_init(uint16_t port);
+
 	zeek::Packet* pkt;
 	PktSrc::Stats queue_stats;
+
+	uint64_t missed_pkts;
 
 	uint16_t my_port_num;
 	uint16_t total_queues;
 	uint16_t my_queue_num;
 
+	uint32_t retry_us;
+
+	double no_pkts;
+	double full_pkts;
+	double partial_pkts;
+    double pkt_histo[BURST_SIZE];
+
 	Properties props;
 
 	// DPDK-related things
-	struct rte_mbuf* bufs[BURST_SIZE];
 	struct rte_mempool* mbuf_pool;
+	struct rte_ring* recv_ring;
 	};
 
 	} // namespace zeek::iosource
