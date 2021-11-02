@@ -1,11 +1,11 @@
 name: Zeek Stable w/ Ubuntu 20
 
-job:
+on: [push, pull_request]
+
+jobs:
   test_ubuntu_20:
     name: Zeek Stable w/ Ubuntu 20
     runs-on: ubuntu-20.04
-
-    on: [push, pull_request]
 
     steps:
       - name: Install dependencies
@@ -13,10 +13,10 @@ job:
 
       - name: Checkout Zeek repo
         uses: actions/checkout@v1
-        repository: zeek/zeek
-        ref: release
         with:
           submodules: recursive
+          repository: zeek/zeek
+          ref: release
 
       - name: Configure Zeek
         run: ./configure
