@@ -18,24 +18,14 @@ jobs:
           repository: zeek/zeek
           ref: release
 
-      - name: Debug
-        run: pwd
-
-      - name: Debug
-        run: ls
-
-      - name: Debug
-        run: ls
-        working-directory: ./zeek
-
       - name: Configure Zeek
         run: ./configure
-        working-directory: ./zeek
+        working-directory: ../zeek
 
       - name: Build Zeek
-        run: make
-        working-directory: ./zeek
+        run: make -j4
+        working-directory: ../zeek
 
       - name: Install Zeek
         run: sudo make install
-        working-directory: ./zeek
+        working-directory: ../zeek
