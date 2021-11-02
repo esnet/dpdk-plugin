@@ -1,5 +1,7 @@
 name: Zeek Stable w/ Ubuntu 20
 
+on: [push, pull_request]
+
 job:
   test_ubuntu_20:
     name: Zeek Stable w/ Ubuntu 20
