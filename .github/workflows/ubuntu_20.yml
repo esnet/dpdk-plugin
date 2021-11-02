@@ -35,7 +35,7 @@ jobs:
 
       - name: Update our environment
         run: |
-          echo "PATH=/usr/local/zeek/bin:$PATH >> $GITHUB_ENV
+          echo "PATH=/usr/local/zeek/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install DPDK
         run: zkg install --force ./dpdk-plugin
