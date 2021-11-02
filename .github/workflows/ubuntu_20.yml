@@ -18,6 +18,16 @@ jobs:
           repository: zeek/zeek
           ref: release
 
+      - name: Debug
+        run: pwd
+
+      - name: Debug
+        run: ls
+
+      - name: Debug
+        run: ls
+        working-directory: ./zeek
+
       - name: Configure Zeek
         run: ./configure
         working-directory: ./zeek
