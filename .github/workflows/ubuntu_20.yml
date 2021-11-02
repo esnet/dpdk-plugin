@@ -1,11 +1,11 @@
 name: Zeek Stable w/ Ubuntu 20
 
-on: [push, pull_request]
-
 job:
   test_ubuntu_20:
     name: Zeek Stable w/ Ubuntu 20
     runs-on: ubuntu-20.04
+
+    on: [push, pull_request]
 
     steps:
       - name: Install dependencies
