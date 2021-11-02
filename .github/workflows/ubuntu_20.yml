@@ -33,5 +33,9 @@ jobs:
       - name: Checkout Plugin repo
         uses: actions/checkout@v1
 
+      - name: Update our environment
+        run: |
+          echo "PATH=/usr/local/zeek/bin:$PATH >> $GITHUB_ENV
+
       - name: Install DPDK
         run: zkg install --force ./dpdk-plugin
