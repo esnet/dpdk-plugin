@@ -29,3 +29,9 @@ jobs:
       - name: Install Zeek
         run: sudo make install
         working-directory: ../zeek
+
+      - name: Checkout Plugin repo
+        uses: actions/checkout@v1
+
+      - name: Install DPDK
+        run: zkg install --force ./dpdk-plugin
