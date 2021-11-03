@@ -37,5 +37,8 @@ jobs:
         run: |
           echo "PATH=/usr/local/zeek/bin:$PATH" >> $GITHUB_ENV
 
+      - name: Install DPDK prereqs
+        run: sudo apt install -y dpdk dpdk-igb-uio-dkms linux-headers-$(uname -r)
+
       - name: Install DPDK
-        run: zkg install --force ./dpdk-plugin
+        run: sudo zkg install --force ./dpdk-plugin
