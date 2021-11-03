@@ -62,11 +62,19 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 	// TODO: Technically this could be unset
 	static const zeek::String* my_iface = my_entry->GetField(4)->AsString();
 
+// PDict iterator was replaced by standard-library compatible iterators at v4.1.0
+#if ZEEK_VERSION_NUMBER < 40100
+	const char* k = nullptr;
+	int i = 0;
+	while ( auto* entry = cluster_node_table->NthEntry(i++, k) )
+		{
+		auto v = entry->GetVal()->AsRecordVal();
+#else
 	for ( const auto& iter : *cluster_node_table )
 		{
 		auto k = iter.GetKey();
 		auto v = iter.GetValue<zeek::TableEntryVal*>()->GetVal()->AsRecordVal();
-
+#endif
 		auto interface_field = v->GetField(4);
 		if ( ! interface_field )
 			continue;
