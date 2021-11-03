@@ -19,7 +19,7 @@ jobs:
           ref: release
 
       - name: Configure Zeek
-        run: ./configure
+        run: ./configure --prefix=/usr/local
         working-directory: ../zeek
 
       - name: Build Zeek
@@ -32,10 +32,6 @@ jobs:
 
       - name: Checkout Plugin repo
         uses: actions/checkout@v1
-
-      - name: Update our environment
-        run: |
-          echo "PATH=/usr/local/zeek/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install DPDK prereqs
         run: sudo apt install -y dpdk dpdk-igb-uio-dkms linux-headers-$(uname -r)
