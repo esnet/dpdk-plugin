@@ -37,4 +37,7 @@ jobs:
         run: sudo apt install -y dpdk dpdk-igb-uio-dkms linux-headers-$(uname -r)
 
       - name: Install DPDK
-        run: sudo zkg install --force ./dpdk-plugin
+        run: sudo zkg install --force /home/runner/work/dpdk-plugin/dpdk-plugin
+
+      - name: Verify Install
+        run: zeek -NN | grep DPDK
