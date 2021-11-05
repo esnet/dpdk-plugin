@@ -20,8 +20,6 @@ endif()
 
 include_directories(/usr/include/x86_64-linux-gnu/dpdk /usr/include/dpdk)
 
-add_executable(key_finder src/key_finder.cc)
-
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" VERSION LIMIT_COUNT 1)
 
 if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
