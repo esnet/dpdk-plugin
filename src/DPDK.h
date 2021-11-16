@@ -16,8 +16,6 @@
 #include <zeek/ID.h>
 #include <zeek/RunState.h>
 
-#include "dpdk.bif.h"
-
 // Should be 2**n - 1
 //#define NUM_MBUFS 32767
 #define NUM_MBUFS 32767
