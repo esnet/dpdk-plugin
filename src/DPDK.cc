@@ -28,7 +28,7 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 	// TODO: Determine port_num
 	my_port_num = 0;
 	my_queue_num = 0;
-	total_queues = 1;
+	total_queues = 0;
 
 	pkt_loop = true;
 
@@ -38,6 +38,7 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 	// Not running in a cluster, so single-queue
 	if ( ! cluster_node )
 		{
+		total_queues = 1;
 		printf("Found %d queues\n", total_queues);
 		return;
 		}
