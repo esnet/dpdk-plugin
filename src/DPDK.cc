@@ -145,7 +145,7 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_dev_info_get(port, &dev_info);
 	if ( retval != 0 )
 		{
-		reporter->FatalError("Error getting device (port %u) info: %s\n", port, strerror(-retval));
+		reporter->FatalError("Error: Could not get device (port %u) info: %s. Proceeding to the next port.\n", port, strerror(-retval));
 		return retval;
 		}
 
@@ -156,13 +156,13 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_dev_get_name_by_port(port, dev_name);
 	if ( retval != 0 )
 		{
-		reporter->Warning("Error getting device name (port %u): %s\n", port, strerror(-retval));
+		reporter->Warning("Warning: Could not get device name (port %u): %s\n", port, strerror(-retval));
 		}
 
 	if ( dev_info.driver_name == "net_pcap" )
 		{
 		reporter->Info(
-			"The port is using the generic 'net_pcap' driver, skipping it."
+			"The port is using the generic 'net_pcap' driver, proceeding to the next port."
 			"Please configure a Poll-Mode Driver (PMD) if you would like to use this port.\n");
 		return 0;
 		}
@@ -202,7 +202,7 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_dev_adjust_nb_rx_tx_desc(port, &rx_descriptors, nullptr);
 	if ( retval != 0 )
 		{
-		reporter->Warning("Error setting the number of queues (port %u): %s\n", port,
+		reporter->Warning("Error: setting the number of queues (port %u): %s. Proceeding to the next port.\n", port,
 		                  strerror(-retval));
 		return retval;
 		}
@@ -218,7 +218,7 @@ inline int DPDK::port_init(uint16_t port)
 		                                &rxq_conf, mbuf_pool);
 		if ( retval != 0 )
 			{
-			reporter->Warning("Error setting the number of queue descriptors (port %u): %s\n", port,
+			reporter->Warning("Error: setting the number of queue descriptors (port %u): %s. Proceeding to the next port.\n", port,
 			                  strerror(-retval));
 			return retval;
 			}
@@ -228,7 +228,7 @@ inline int DPDK::port_init(uint16_t port)
 	                                mbuf_pool);
 	if ( retval != 0 )
 		{
-		reporter->Warning("Error setting the number of queue descriptors (port %u, queue %u): %s\n",
+		reporter->Warning("Error: setting the number of queue descriptors (port %u, queue %u): %s. Proceeding to the next port.\n",
 		                  port, my_queue_num, strerror(-retval));
 		return retval;
 		}
@@ -237,7 +237,7 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_dev_start(port);
 	if ( retval != 0 )
 		{
-		reporter->Warning("Error starting port %u: %s\n", port, strerror(-retval));
+		reporter->Warning("Error: starting port %u: %s. Proceeding to the next port.\n", port, strerror(-retval));
 		return retval;
 		}
 
@@ -245,9 +245,8 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_promiscuous_enable(port);
 	if ( retval != 0 )
 		{
-		reporter->Warning("Error setting port %u to promiscuous mode: %s\n", port,
+		reporter->Warning("Warning: Failed to set %u to promiscuous mode: %s\n", port,
 		                  strerror(-retval));
-		//		return retval;
 		}
 
 	reporter->Info("Monitoring DPDK port %u, queue %u, core %u\n", port, my_queue_num, rte_lcore_id());
@@ -298,7 +297,7 @@ void DPDK::Open()
 	ret = port_init(my_port_num);
 	found |= ret == 0;
 
-	recv_ring = rte_ring_create("queued_pkts", rte_align32pow2(NUM_MBUFS), rte_socket_id(),
+	recv_ring = rte_ring_create(fmt("queued_pkts_%d_%d", my_port_num, my_queue_num), rte_align32pow2(NUM_MBUFS), rte_socket_id(),
 	                            RING_F_SP_ENQ | RING_F_SC_DEQ);
 	if ( recv_ring == nullptr )
 		{
@@ -406,7 +405,7 @@ static int GrabPackets(void* args_ptr)
 	uint16_t pkts_queued = 0;
 	//queue_drops = 0;
 
-	while ( !run_state::detail::first_timestamp ) { 
+	while ( !run_state::detail::first_timestamp ) {
 		rte_delay_us_sleep(1000);
 	}
 
