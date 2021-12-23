@@ -247,7 +247,7 @@ inline int DPDK::port_init(uint16_t port)
 		{
 		reporter->Warning("Error setting port %u to promiscuous mode: %s\n", port,
 		                  strerror(-retval));
-		return retval;
+		//		return retval;
 		}
 
 	reporter->Info("Monitoring DPDK port %u, queue %u, core %u\n", port, my_queue_num, rte_lcore_id());
