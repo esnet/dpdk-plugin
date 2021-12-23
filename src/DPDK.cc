@@ -297,7 +297,7 @@ void DPDK::Open()
 	ret = port_init(my_port_num);
 	found |= ret == 0;
 
-	char* ring_name[100];
+	char ring_name[100];
 	snprintf(ring_name, 100, "queued_pkts_%d_%d", my_port_num, my_queue_num);
 
 	recv_ring = rte_ring_create(ring_name, rte_align32pow2(NUM_MBUFS), rte_socket_id(),
