@@ -1,40 +1,83 @@
+# ESnet DPDK Plugin
 
-ESnet::DPDK
-=================================
+## Motivation
 
-Install
--------
+Intel's [DPDK](https://www.dpdk.org/) is a mature, highly-optimized
+library for fast packet capture and generation. This plugin allows the
+[Zeek Network Security Monitor](https://zeek.org) to use it.
 
-On Ubuntu:
+## Install
+
+### Prerequisites
+
+Install Zeek and zkg, and configure zkg.
+
+### Installing DPDK
+
+Installing the DPDK libraries and kernel module differs based on your distribution:
+
+##### Ubuntu
 
 ```
-dpdk-devbind.py --status
-sudo dpdk-devbind.py -u 02:00.0
-sudo apt install dpdk-igb-uio-dkms
-sudo modprobe igb_uio
-sudo dpdk-devbind.py -b igb_uio 02:00.0
+sudo apt install dpdk
 ```
 
-DPDK function order:
+#### Bind the NIC to a DPDK-compatible driver
 
-          ( DPDK::Open is called )
-    01. Initialize the EAL (rte_eal_init)
-    02. Ensure we have at least one port (rte_eth_dev_count_avail)
-    03. Create the mbuf (rte_pktmbuf_pool_create)
-          ( port_init is called )
-    04. Double-check (rte_eth_dev_is_valid_port)
-    05. Get device info (rte_eth_dev_info_get)
-    06. Configure the port (rte_eth_dev_configure)
-    07. Set the MTU (rte_eth_dev_set_mtu)
-    08. Adjust the number of queue descriptors (rte_eth_dev_adjust_nb_rx_tx_desc)
-    09. Configure the number of queues (rte_eth_rx_queue_setup)
-    10. Start the port (rte_eth_dev_start)
-    11. Enable promiscuous mode (rte_eth_promiscuous_enable)
-         ( port_init returns )
-    12. Check for NUMA proximity (rte_eth_dev_socket_id, rte_socket_id)
-    13. Tell Zeek that we've opened the port (Opened)
-         ( DPDK::Process )
-    14. Get a bunch of packets (rte_eth_rx_burst)
-    15. Send them to Zeek (dispatch_packet)
-    16. Free the mbuf memory once Zeek is done (rte_pktmbuf_free)
+DPDK ships with a helper script, which makes it easy to bind your network card. Start by viewing the current status:
 
+```
+$ dpdk-devbind.py --status
+
+Network devices using kernel driver
+===================================
+0000:00:05.0 'Elastic Network Adapter (ENA) ec20' if=ens5 drv=ena unused=igb_uio,vfio-pci *Active*
+0000:00:06.0 'Elastic Network Adapter (ENA) ec20' if=ens6 drv=ena unused=igb_uio,vfio-pci
+```
+
+Once you've determined which network device you want to use for Zeek, you can bind it to your DPDK-aware driver:
+
+```
+$ sudo dpdk-devbind.py --bind=vfio-pci 00:06.0
+$ dpdk-devbind.py --status
+
+Network devices using DPDK-compatible driver
+============================================
+0000:00:06.0 'Elastic Network Adapter (ENA) ec20' drv=vfio-pci unused=ena,igb_uio
+
+Network devices using kernel driver
+===================================
+0000:00:05.0 'Elastic Network Adapter (ENA) ec20' if=ens5 drv=ena unused=igb_uio,vfio-pci *Active*
+```
+
+#### Install necessary build tools
+
+##### Ubuntu
+
+```
+sudo apt install cmake build-essentials
+```
+
+#### Enable hugepages
+
+`echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages`
+
+
+## Run Zeek
+
+### Manually
+
+```
+zeek -i dpdk::auto
+```
+
+### Via ZeekCtl
+
+```
+[worker-1]
+type=worker
+host=localhost
+interface=dpdk::auto
+lb_method=custom
+lb_procs=8
+```
