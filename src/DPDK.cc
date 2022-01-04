@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "DPDK.h"
 
 namespace zeek::iosource
@@ -25,8 +27,6 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 	for ( uint16_t i = 0; i < BURST_SIZE; i++ )
 		pkt_histo[i] = 0.0;
 
-	// TODO: Determine port_num
-	my_port_num = 0;
 	my_queue_num = 0;
 	total_queues = 0;
 
@@ -187,7 +187,7 @@ inline int DPDK::port_init(uint16_t port)
 	retval = rte_eth_dev_configure(port, rx_rings, 0, &port_conf);
 	if ( retval != 0 )
 		{
-		reporter->FatalError("Error during running eth_dev_configure (port %u) info: %s\n", port,
+		reporter->Warning("Error during running eth_dev_configure (port %u) info: %s\n", port,
 		                     strerror(-retval));
 		return retval;
 		}
@@ -290,31 +290,41 @@ void DPDK::Open()
 		}
 	else
 		{
+		/* Wait a beat to allow the primary process to come up. */
+		sleep(5);
 		mbuf_pool = rte_mempool_lookup("ZEEK_MBUF_POOL");
 		}
 
 	bool found = false;
 
-	ret = port_init(my_port_num);
-	found |= ret == 0;
-
-	char ring_name[100];
-	snprintf(ring_name, 100, "queued_pkts_%d_%d", my_port_num, my_queue_num);
-
-	recv_ring = rte_ring_create(ring_name, rte_align32pow2(NUM_MBUFS), rte_socket_id(),
-	                            RING_F_SP_ENQ | RING_F_SC_DEQ);
-	if ( recv_ring == nullptr )
+	for ( my_port_num = 0; my_port_num < nb_ports; my_port_num++ )
 		{
-		rte_exit(EXIT_FAILURE, "Cannot create receive ring: %s\n", rte_strerror(rte_errno));
-		return;
-		}
+		ret = port_init(my_port_num);
+		found |= ret == 0;
 
-	if ( ret && rte_eth_dev_socket_id(my_port_num) > 0 &&
-	     rte_eth_dev_socket_id(my_port_num) != (int)rte_socket_id() )
-		reporter->Warning("port %u is on remote NUMA node to "
-		                  "polling thread.\n\tPerformance will "
-		                  "not be optimal.\n",
-		                  my_port_num);
+		if ( ! found )
+			continue;
+
+		char ring_name[100];
+		snprintf(ring_name, 100, "queued_pkts_%d_%d", my_port_num, my_queue_num);
+
+		recv_ring = rte_ring_create(ring_name, rte_align32pow2(NUM_MBUFS), rte_socket_id(),
+		                            RING_F_SP_ENQ | RING_F_SC_DEQ);
+		if ( recv_ring == nullptr )
+			{
+			rte_exit(EXIT_FAILURE, "Cannot create receive ring: %s\n", rte_strerror(rte_errno));
+			return;
+			}
+
+		if ( ret && rte_eth_dev_socket_id(my_port_num) > 0 &&
+		     rte_eth_dev_socket_id(my_port_num) != (int)rte_socket_id() )
+			reporter->Warning("port %u is on remote NUMA node to "
+			                  "polling thread.\n\tPerformance will "
+			                  "not be optimal.\n", my_port_num);
+
+		if ( found )
+			break;
+		}
 
 	if ( ! found )
 		{
@@ -322,6 +332,10 @@ void DPDK::Open()
 		return;
 		}
 
+	else
+		{
+		  reporter->Info("Bound to port %u.\n", my_port_num);
+		}
 	struct worker_thread_args* worker_args = new worker_thread_args;
 	worker_args->port_id = my_port_num;
 	worker_args->queue_id = my_queue_num;
