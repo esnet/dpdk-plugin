@@ -110,7 +110,11 @@ inline int DPDK::port_init(uint16_t port)
 		.rxmode =
 			{
 				.mq_mode = ETH_MQ_RX_RSS,
+#if RTE_VERSION >= RTE_VERSION_NUM(21,8,0,0)
+				.mtu = JUMBO_FRAME_MAX_SIZE,
+#else
 				.max_rx_pkt_len = JUMBO_FRAME_MAX_SIZE,
+#endif
 				.split_hdr_size = 0,
 				//.offloads = DEV_RX_OFFLOAD_RSS_HASH,
 			},
@@ -171,7 +175,12 @@ inline int DPDK::port_init(uint16_t port)
 	// If the driver mis-reports this, leave it as JUMBO_FRAME_MAX so as to not set it to 0.
 	if ( dev_info.max_rx_pktlen > 1024 )
 		{
+
+#if RTE_VERSION >= RTE_VERSION_NUM(21,8,0,0)
+		port_conf.rxmode.mtu = RTE_MIN(dev_info.max_mtu, JUMBO_FRAME_MAX_SIZE);
+#else
 		port_conf.rxmode.max_rx_pkt_len = RTE_MIN(dev_info.max_rx_pktlen, JUMBO_FRAME_MAX_SIZE);
+#endif
 		}
 
 	rss_hf_tmp = port_conf.rx_adv_conf.rss_conf.rss_hf;
@@ -193,10 +202,17 @@ inline int DPDK::port_init(uint16_t port)
 		}
 
 	// Set MTU to the maximum
+#if RTE_VERSION >= RTE_VERSION_NUM(21,8,0,0)
+	retval = rte_eth_dev_set_mtu(port, port_conf.rxmode.mtu);
+	if ( retval != 0 )
+		reporter->Warning("Error during running eth_dev_set_mtu (port %u, mtu %lu) info: %s\n",
+		                  port, port_conf.rxmode.mtu, strerror(-retval));
+#else
 	retval = rte_eth_dev_set_mtu(port, port_conf.rxmode.max_rx_pkt_len - MTU_OVERHEAD);
 	if ( retval != 0 )
 		reporter->Warning("Error during running eth_dev_set_mtu (port %u, mtu %lu) info: %s\n",
 		                  port, port_conf.rxmode.max_rx_pkt_len - MTU_OVERHEAD, strerror(-retval));
+#endif
 
 	// Adjust number of queues as required by the NIC
 	uint16_t rx_descriptors = RX_RING_SIZE;
