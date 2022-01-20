@@ -11,6 +11,7 @@
 #include <rte_latencystats.h>
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
+#include <rte_version.h>
 
 #include <zeek/Desc.h>
 #include <zeek/ID.h>
