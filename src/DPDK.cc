@@ -34,12 +34,13 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 
 	retry_us = 100 * 1000;
 
+	debug = getenv("DPDK_DEBUG") != NULL;
 	char* cluster_node = getenv("CLUSTER_NODE");
 	// Not running in a cluster, so single-queue
 	if ( ! cluster_node )
 		{
 		total_queues = 1;
-		printf("Found %d queues\n", total_queues);
+		if ( debug ) printf("Found %u queues\n", total_queues);
 		return;
 		}
 
@@ -154,8 +155,8 @@ inline int DPDK::port_init(uint16_t port)
 		return retval;
 		}
 
-	printf("Debug Jumbo max=%u, dev_info=%u, min=%u\n", JUMBO_FRAME_MAX_SIZE,
-	       dev_info.max_rx_pktlen, RTE_MIN(dev_info.max_rx_pktlen, JUMBO_FRAME_MAX_SIZE));
+	if ( debug ) printf("Debug Jumbo max=%u, dev_info=%u, min=%u\n", JUMBO_FRAME_MAX_SIZE,
+	             dev_info.max_rx_pktlen, RTE_MIN(dev_info.max_rx_pktlen, JUMBO_FRAME_MAX_SIZE));
 
 	char dev_name[RTE_DEV_NAME_MAX_LEN];
 	retval = rte_eth_dev_get_name_by_port(port, dev_name);
@@ -193,7 +194,9 @@ inline int DPDK::port_init(uint16_t port)
 		}
 
 	// Set number of queues
+	if ( debug ) printf("Setting number of queues: rte_eth_dev_configure(%u, %u)\n", port, rx_rings);
 	retval = rte_eth_dev_configure(port, rx_rings, 0, &port_conf);
+
 	if ( retval != 0 )
 		{
 		reporter->Warning("Error during running eth_dev_configure (port %u) info: %s\n", port,
@@ -203,11 +206,14 @@ inline int DPDK::port_init(uint16_t port)
 
 	// Set MTU to the maximum
 #if RTE_VERSION >= RTE_VERSION_NUM(21,8,0,0)
+	if ( debug ) printf("Setting MTU: rte_eth_dev_set_mtu(%u, %u)\n", port, port_conf.rxmode.mtu);
 	retval = rte_eth_dev_set_mtu(port, port_conf.rxmode.mtu);
+
 	if ( retval != 0 )
 		reporter->Warning("Error during running eth_dev_set_mtu (port %u, mtu %lu) info: %s\n",
 		                  port, port_conf.rxmode.mtu, strerror(-retval));
 #else
+	if ( debug ) printf("Setting MTU: rte_eth_dev_set_mtu(%u, %u)\n", port, port_conf.rxmode.max_rx_pkt_len);
 	retval = rte_eth_dev_set_mtu(port, port_conf.rxmode.max_rx_pkt_len - MTU_OVERHEAD);
 	if ( retval != 0 )
 		reporter->Warning("Error during running eth_dev_set_mtu (port %u, mtu %lu) info: %s\n",
@@ -216,6 +222,7 @@ inline int DPDK::port_init(uint16_t port)
 
 	// Adjust number of queues as required by the NIC
 	uint16_t rx_descriptors = RX_RING_SIZE;
+	if ( debug ) printf("Setting number of queues: rte_eth_dev_adjust_nb_rx_tx_desc(%u, %u)\n", port, rx_descriptors);
 	retval = rte_eth_dev_adjust_nb_rx_tx_desc(port, &rx_descriptors, nullptr);
 	if ( retval != 0 )
 		{
@@ -224,13 +231,14 @@ inline int DPDK::port_init(uint16_t port)
 		return retval;
 		}
 
-	printf("Attempting to configure %d descriptors, allowed to configure %d\n", RX_RING_SIZE,
-	       rx_descriptors);
+	if ( debug ) printf("Attempting to configure %u descriptors, allowed to configure %u\n", RX_RING_SIZE,
+	            rx_descriptors);
 
 	rxq_conf = dev_info.default_rxconf;
 	rxq_conf.offloads = port_conf.rxmode.offloads;
 	for ( q = 0; q < rx_rings; q++ )
 		{
+		if ( debug ) printf("Setting up queue descriptors on port: rte_eth_rx_queue_setup(%u, %u, %u, %u)\n", port, q, rx_descriptors, rte_eth_dev_socket_id(port));
 		retval = rte_eth_rx_queue_setup(port, q, rx_descriptors, rte_eth_dev_socket_id(port),
 		                                &rxq_conf, mbuf_pool);
 		if ( retval != 0 )
@@ -241,6 +249,7 @@ inline int DPDK::port_init(uint16_t port)
 			}
 		}
 
+	if ( debug ) printf("Setting up queue descriptors on queue: rte_eth_rx_queue_setup(%u, %u, %u, SOCKET_ID_ANY)\n", port, my_queue_num, rx_descriptors);
 	retval = rte_eth_rx_queue_setup(port, my_queue_num, rx_descriptors, SOCKET_ID_ANY, &rxq_conf,
 	                                mbuf_pool);
 	if ( retval != 0 )
@@ -251,6 +260,7 @@ inline int DPDK::port_init(uint16_t port)
 		}
 
 	/* Start the Ethernet port. */
+	if ( debug ) printf("Starting port: rte_eth_dev_start(%u)\n", port);
 	retval = rte_eth_dev_start(port);
 	if ( retval != 0 )
 		{
@@ -259,6 +269,7 @@ inline int DPDK::port_init(uint16_t port)
 		}
 
 	/* Enable RX in promiscuous mode for the Ethernet device. */
+	if ( debug ) printf("Enabling promiscuous mode: rte_eth_promiscuous_enable(%u)\n", port);
 	retval = rte_eth_promiscuous_enable(port);
 	if ( retval != 0 )
 		{
@@ -322,7 +333,7 @@ void DPDK::Open()
 			continue;
 
 		char ring_name[100];
-		snprintf(ring_name, 100, "queued_pkts_%d_%d", my_port_num, my_queue_num);
+		if ( debug ) snprintf(ring_name, 100, "queued_pkts_%u_%u", my_port_num, my_queue_num);
 
 		recv_ring = rte_ring_create(ring_name, rte_align32pow2(NUM_MBUFS), rte_socket_id(),
 		                            RING_F_SP_ENQ | RING_F_SC_DEQ);

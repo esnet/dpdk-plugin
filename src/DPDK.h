@@ -102,7 +102,9 @@ private:
 	double no_pkts;
 	double full_pkts;
 	double partial_pkts;
-    double pkt_histo[BURST_SIZE];
+	double pkt_histo[BURST_SIZE];
+
+	bool debug;
 
 	Properties props;
 
