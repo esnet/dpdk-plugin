@@ -5,19 +5,18 @@
 
 plugin_usage()
 {
-    : # Do nothing
-#    cat <<EOF
-#    --with-foo=DIR          Path to foo
-# EOF
+    cat <<EOF
+    --no-native          Don't optimize for this CPU (e.g. if using a build host)
+EOF
 }
 
 plugin_option()
 {
     case "$1" in
-#        --with-foo=*)
-#            append_cache_entry FOO_DIR PATH $optarg
-#            return 0
-#            ;;
+        --no-native)
+            append_cache_entry OPTIMIZE_FOR_NATIVE BOOL false
+            return 0
+            ;;
 
         *)
             return 1;

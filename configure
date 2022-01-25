@@ -20,14 +20,14 @@ cat 1>&2 <<EOF
 Usage: $0 [OPTIONS]
 
   Plugin Options:
-    --cmake=PATH               Path to CMake binary
-    --zeek-dist=DIR            Path to Zeek source tree
-    --install-root=DIR         Path where to install plugin into
-    --with-binpac=DIR          Path to BinPAC installation root
-    --with-broker=DIR          Path to Broker installation root
-    --with-caf=DIR             Path to CAF installation root
-    --with-bifcl=PATH          Path to bifcl executable
-    --enable-debug             Compile in debugging mode
+    --cmake=PATH         Path to CMake binary
+    --zeek-dist=DIR      Path to Zeek source tree
+    --install-root=DIR   Path where to install plugin into
+    --with-binpac=DIR    Path to BinPAC installation root
+    --with-broker=DIR    Path to Broker installation root
+    --with-caf=DIR       Path to CAF installation root
+    --with-bifcl=PATH    Path to bifcl executable
+    --enable-debug       Compile in debugging mode
 EOF
 
 if type plugin_usage >/dev/null 2>&1; then
