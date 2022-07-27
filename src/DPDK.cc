@@ -43,7 +43,7 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 		return;
 		}
 
-	static const zeek::PDict<zeek::TableEntryVal>* cluster_node_table =
+	static const auto* cluster_node_table =
 		zeek::id::find_val("Cluster::nodes")->AsTable();
 
 	/* Fields in a record of type Cluster::Node
@@ -74,7 +74,12 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 	for ( const auto& iter : *cluster_node_table )
 		{
 		auto k = iter.GetKey();
-		auto v = iter.GetValue<zeek::TableEntryVal*>()->GetVal()->AsRecordVal();
+#if ZEEK_VERSION_NUMBER < 50100
+                auto v = iter.GetValue<zeek::TableEntryVal*>()->GetVal()->AsReco
+rdVal();
+#else
+                auto v = iter.value->GetVal()->AsRecordVal();
+#endif
 #endif
 		auto interface_field = v->GetField(4);
 		if ( ! interface_field )

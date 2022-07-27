@@ -12,6 +12,7 @@
 #include <rte_lcore.h>
 #include <rte_mbuf.h>
 
+#include <zeek/Dict.h>
 #include <zeek/Desc.h>
 #include <zeek/ID.h>
 #include <zeek/RunState.h>
