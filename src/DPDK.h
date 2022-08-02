@@ -13,6 +13,7 @@
 #include <rte_mbuf.h>
 #include <rte_version.h>
 
+#include <zeek/Dict.h>
 #include <zeek/Desc.h>
 #include <zeek/ID.h>
 #include <zeek/RunState.h>
