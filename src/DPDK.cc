@@ -76,8 +76,7 @@ DPDK::DPDK(const std::string& iface_name, bool is_live)
 		{
 		auto k = iter.GetKey();
 #if ZEEK_VERSION_NUMBER < 50100
-                auto v = iter.GetValue<zeek::TableEntryVal*>()->GetVal()->AsReco
-rdVal();
+                auto v = iter.GetValue<zeek::TableEntryVal*>()->GetVal()->AsRecordVal();
 #else
                 auto v = iter.value->GetVal()->AsRecordVal();
 #endif
